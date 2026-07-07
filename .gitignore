@@ -1,0 +1,35 @@
+# Secrets - never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+token.json
+tokens/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Local config (contains machine-specific paths)
+config.yaml
+
+# Local state and private generated output
+data/*.sqlite
+data/*.sqlite-*
+outputs/digests/*.md
+outputs/digests/*.txt
+outputs/digests/*.html
+outputs/logs/*.log
+outputs/logs/LAST_RUN_ERROR.txt
+
+# Private notes content (folder structure is kept via .gitkeep)
+notes/**
+!notes/*/
+!notes/**/.gitkeep

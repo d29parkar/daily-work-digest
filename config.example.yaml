@@ -1,0 +1,90 @@
+# Copy to config.yaml and adjust for your machine.
+# config.yaml is git-ignored; this example file is the documented reference.
+# %USERPROFILE% and other environment variables are expanded automatically.
+
+# Base folder for relative repo paths below.
+parent_dir: '%USERPROFILE%\projects'
+
+# Repos whose work should appear in the digest. Sessions/notes are included
+# only when they mention one of these names or paths. Use your own repos here;
+# these two are examples.
+repos:
+  my-api-repo: '%USERPROFILE%\projects\my-api-repo'
+  my-app-repo: '%USERPROFILE%\projects\my-app-repo'
+
+# The repo the digest centers on. Secondary repos get a line or two only when
+# something real happened there. Defaults to the first repo listed above.
+primary_repo: my-api-repo
+
+# Where Claude Code stores session transcripts.
+claude:
+  paths:
+    - '%USERPROFILE%\.claude\projects'
+    - '%USERPROFILE%\.claude\sessions'
+  lookback_hours: 48
+
+# Where Codex stores session transcripts.
+codex:
+  paths:
+    - '%USERPROFILE%\.codex\sessions'
+  lookback_hours: 48
+
+# Local notes: reviewer feedback, meeting notes, ChatGPT exports, markdown
+# task lists. Drop files into notes/reviewer/ or notes/manual/.
+notes:
+  path: notes
+  lookback_hours: 168
+
+output:
+  path: outputs\digests
+
+data:
+  sqlite_path: data\digest.sqlite
+
+summary:
+  max_transcript_chars: 60000
+  max_items_per_source: 12
+  # Newest N sessions/notes make it into the report and its Sources appendix.
+  max_sources: 20
+
+# LLM summarizer.
+#   provider: auto        -> OpenAI when OPENAI_API_KEY is set, else local_rules
+#             openai      -> require OpenAI (falls back with a loud note if key missing)
+#             local_rules -> deterministic, no network, no key
+#             fixture     -> canned output from fixture_path (tests/demos)
+#   name: any OpenAI chat model; switch to a cheaper one (e.g. gpt-4o-mini or
+#         gpt-4.1-nano) by changing this line only.
+model:
+  provider: auto
+  name: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+  max_prompt_chars: 24000
+  max_output_tokens: 2000
+  timeout_seconds: 120
+  fixture_path: ""
+
+# Sessions mentioning any of these markers are skipped. Keep this project's
+# own name here so the digest does not ingest its own runs.
+filters:
+  exclude_session_markers:
+    - daily-work-digest
+
+email:
+  enabled: true
+  recipient: you@example.com
+  subject_prefix: Daily Work Digest
+  sender_env: DIGEST_EMAIL_FROM
+  smtp:
+    host: smtp.gmail.com
+    port: 587
+    username_env: DIGEST_SMTP_USERNAME
+    password_env: DIGEST_SMTP_PASSWORD
+    use_tls: true
+
+# Later-stage optional integrations. Read-only by design; disabled by default.
+# See docs/GOOGLE_INTEGRATIONS.md before enabling.
+integrations:
+  gmail:
+    enabled: false
+  calendar:
+    enabled: false
