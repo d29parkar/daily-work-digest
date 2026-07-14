@@ -63,9 +63,12 @@ class _TurnBuilder:
         self.flags: list[str] = []
 
     def build(self) -> TurnRecord:
-        key = self.turn_key or f"seq{self.seq}"
+        # seq is part of the id because promptId is NOT unique per turn: an
+        # interrupted prompt re-appears under the same promptId (observed in
+        # real sessions), and seq keeps ids collision-free and ordered.
+        key = self.turn_key or "turn"
         return TurnRecord(
-            turn_id=f"{self.session_id}:{key}",
+            turn_id=f"{self.session_id}:{self.seq}:{key}",
             session_id=self.session_id,
             seq=self.seq,
             started_at=self.started_at,

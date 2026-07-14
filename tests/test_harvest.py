@@ -137,7 +137,8 @@ def test_parse_claude_session(tmp_path: Path):
     assert session.parse_errors == 0
 
     first, second = turns
-    assert first.turn_id.endswith(":p1")
+    assert first.turn_id.endswith(":1:p1")
+    assert second.turn_id.endswith(":2:p2")
     assert first.user_text == "fix the widget crash on save"
     assert "ide_selection_stripped" in first.flags
     assert "SKILL BODY INJECTION" not in first.user_text
