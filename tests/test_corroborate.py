@@ -59,7 +59,7 @@ def _unit(
     *, files: list[str], status_claim: str = "done", claims: list[dict] | None = None
 ) -> WorkUnit:
     unit = WorkUnit(
-        unit_key="claude:abc:1", work_date="2026-07-12", project_id=None,
+        unit_key="claude:abc:2026-07-12:1", work_date="2026-07-12", project_id=None,
         turn_ids=["claude:abc:1:p1"], intent="i", kind="debugging",
         outcome_claim="o", status_claim=status_claim, files=files,
         entities=[], claims=claims or [], open_questions=[],

@@ -106,7 +106,7 @@ def test_extract_maps_seqs_and_overrides_files():
     llm = ScriptedLLM([_good_payload()])
     units, method = extract_session_units(llm, _session(), _turns(), "2026-07-12")
     assert method == "llm"
-    assert [u.unit_key for u in units] == ["claude:abc:1", "claude:abc:2"]
+    assert [u.unit_key for u in units] == ["claude:abc:2026-07-12:1", "claude:abc:2026-07-12:2"]
     first, second = units
     assert first.turn_ids == ["claude:abc:1:p1"]
     # files come from harvest facts, never from the model:

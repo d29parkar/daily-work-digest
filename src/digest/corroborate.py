@@ -275,7 +275,8 @@ def corroborate_units(store: WorkStore, units: list[WorkUnit]) -> None:
 
 
 def _unit_turns(store: WorkStore, unit: WorkUnit) -> list[TurnRecord]:
-    session_id = unit.unit_key.rsplit(":", 1)[0]
+    # unit_key = <session_id>:<work_date>:<n>
+    session_id = unit.unit_key.rsplit(":", 2)[0]
     wanted = set(unit.turn_ids)
     return [t for t in store.list_turns(session_id) if t.turn_id in wanted]
 

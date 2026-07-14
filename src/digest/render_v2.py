@@ -95,7 +95,8 @@ def _project_units_section(units: list[WorkUnit]) -> list[str]:
 
 
 def _sources_appendix(store: WorkStore, units: list[WorkUnit]) -> list[str]:
-    session_ids = sorted({unit.unit_key.rsplit(":", 1)[0] for unit in units})
+    # unit_key = <session_id>:<work_date>:<n>
+    session_ids = sorted({unit.unit_key.rsplit(":", 2)[0] for unit in units})
     if not session_ids:
         return []
     lines = ["## Sources", ""]

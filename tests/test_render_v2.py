@@ -37,7 +37,7 @@ def _seed_day(store: WorkStore) -> None:
     store.upsert_session(session, [turn])
     units = [
         WorkUnit(
-            unit_key="claude:abc:1", work_date="2026-07-12", project_id="widget",
+            unit_key="claude:abc:2026-07-12:1", work_date="2026-07-12", project_id="widget",
             turn_ids=["claude:abc:1:p1"], intent="Fix the widget crash",
             kind="debugging", outcome_claim="Guarded None in save()",
             status_claim="done", files=["widget.py"], entities=[], claims=[],
@@ -46,7 +46,7 @@ def _seed_day(store: WorkStore) -> None:
                           "evidence": ["commit:abc123def456"], "notes": []},
         ),
         WorkUnit(
-            unit_key="claude:abc:2", work_date="2026-07-12", project_id="widget",
+            unit_key="claude:abc:2026-07-12:2", work_date="2026-07-12", project_id="widget",
             turn_ids=["claude:abc:1:p1"], intent="Refactor pricing module",
             kind="refactor", outcome_claim="Claims complete rewrite",
             status_claim="done", files=["pricing.py"], entities=[], claims=[],
@@ -78,7 +78,7 @@ def test_render_night_separates_verified_from_contradicted(store, tmp_path):
     assert "Landed (verified against commits)" in text
     assert "commit:abc123def456" in text
     assert "Claimed done, repo disagrees" in text
-    assert "[claude:abc:1]" in text  # provenance citation
+    assert "[claude:abc:2026-07-12:1]" in text  # provenance citation
     assert "## Sources" in text
     assert "C:/s/abc.jsonl" in text
     assert "backport to v1?" in text
@@ -131,7 +131,8 @@ def test_load_trello_voice_prefers_configured_paths(store, tmp_path):
     skill.write_text("MY REAL VOICE RULES", encoding="utf-8")
     config = _config(
         tmp_path,
-        f"pipeline:\n  trello_skill_paths:\n    - {skill}",
+        f"pipeline:\n  registry_export_path: {tmp_path / 'registry.md'}\n"
+        f"  trello_skill_paths:\n    - {skill}",
     )
     voice, notes = load_trello_voice(config)
     assert "MY REAL VOICE RULES" in voice
@@ -146,7 +147,7 @@ def test_load_trello_voice_vendored_fallback(store, tmp_path):
 
 def _incidental_unit() -> WorkUnit:
     return WorkUnit(
-        unit_key="claude:abc:3", work_date="2026-07-12", project_id="widget",
+        unit_key="claude:abc:2026-07-12:3", work_date="2026-07-12", project_id="widget",
         turn_ids=["claude:abc:1:p1"], intent="Fix broken venv after Python upgrade",
         kind="ops", outcome_claim="Reinstalled deps", status_claim="done",
         files=[], entities=[], claims=[], open_questions=[],

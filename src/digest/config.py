@@ -302,11 +302,31 @@ def _load_yaml_subset(path: Path) -> dict[str, Any]:
 def _preprocess_yaml_lines(text: str) -> list[tuple[int, str]]:
     lines: list[tuple[int, str]] = []
     for raw in text.splitlines():
+        raw = _strip_inline_comment(raw)
         if not raw.strip() or raw.lstrip().startswith("#"):
             continue
         indent = len(raw) - len(raw.lstrip(" "))
         lines.append((indent, raw.strip()))
     return lines
+
+
+def _strip_inline_comment(line: str) -> str:
+    """Drop ' # ...' comments that are not inside a quoted value."""
+    in_single = in_double = False
+    for index, char in enumerate(line):
+        if char == "'" and not in_double:
+            in_single = not in_single
+        elif char == '"' and not in_single:
+            in_double = not in_double
+        elif (
+            char == "#"
+            and not in_single
+            and not in_double
+            and index > 0
+            and line[index - 1] in " \t"
+        ):
+            return line[:index]
+    return line
 
 
 def _parse_yaml_block(

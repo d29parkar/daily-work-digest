@@ -93,6 +93,10 @@ def write_config(
     ]
     if extra:
         lines.append(extra)
+    # Keep the registry mirror inside tmp_path unless the test overrides
+    # pipeline: itself; the default would resolve into the real repo.
+    if "registry_export_path" not in extra and "pipeline:" not in extra:
+        lines += ["pipeline:", f"  registry_export_path: {tmp_path / 'registry.md'}"]
     config_path = tmp_path / "config.yaml"
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return config_path

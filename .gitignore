@@ -33,3 +33,6 @@ outputs/logs/LAST_RUN_ERROR.txt
 notes/**
 !notes/*/
 !notes/**/.gitkeep
+
+# Generated project-registry mirror (personal content)
+data/registry.md

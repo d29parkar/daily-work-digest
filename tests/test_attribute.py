@@ -79,7 +79,7 @@ def test_baseline_seeding_is_idempotent(store: WorkStore, tmp_path: Path):
 
 def test_cwd_match_wins(store: WorkStore, tmp_path: Path):
     _seed(store, tmp_path)
-    unit = _unit("claude:s1:1")
+    unit = _unit("claude:s1:2026-07-12:1")
     store.replace_work_units("claude:s1", "2026-07-12", [unit])
     sessions = {"claude:s1": _session("claude:s1", str(tmp_path / "repo-fastapi" / "sub"))}
     counts = attribute_units(store, [unit], sessions)
@@ -90,9 +90,9 @@ def test_cwd_match_wins(store: WorkStore, tmp_path: Path):
 def test_override_beats_everything(store: WorkStore, tmp_path: Path):
     _seed(store, tmp_path)
     store.create_project("other", "Other")
-    unit = _unit("claude:s1:1")
+    unit = _unit("claude:s1:2026-07-12:1")
     store.replace_work_units("claude:s1", "2026-07-12", [unit])
-    store.set_override("claude:s1:1", "other")
+    store.set_override("claude:s1:2026-07-12:1", "other")
     sessions = {"claude:s1": _session("claude:s1", str(tmp_path / "repo-fastapi"))}
     counts = attribute_units(store, [unit], sessions)
     assert counts["override"] == 1
@@ -101,7 +101,7 @@ def test_override_beats_everything(store: WorkStore, tmp_path: Path):
 
 def test_unknown_cwd_creates_stable_provisional_project(store: WorkStore, tmp_path: Path):
     _seed(store, tmp_path)
-    unit = _unit("claude:s2:1")
+    unit = _unit("claude:s2:2026-07-12:1")
     store.replace_work_units("claude:s2", "2026-07-12", [unit])
     sessions = {"claude:s2": _session("claude:s2", "C:\\projects\\LotusPetal")}
     counts = attribute_units(store, [unit], sessions)
@@ -110,7 +110,7 @@ def test_unknown_cwd_creates_stable_provisional_project(store: WorkStore, tmp_pa
     assert project is not None and project.status == "provisional"
 
     # Second run: same cwd now matches the stored matcher deterministically.
-    unit2 = _unit("claude:s3:1")
+    unit2 = _unit("claude:s3:2026-07-12:1")
     store.replace_work_units("claude:s3", "2026-07-12", [unit2])
     sessions["claude:s3"] = _session("claude:s3", "C:\\projects\\LotusPetal\\api")
     counts2 = attribute_units(store, [unit2], sessions)
@@ -119,7 +119,7 @@ def test_unknown_cwd_creates_stable_provisional_project(store: WorkStore, tmp_pa
 
 def test_no_cwd_goes_to_inbox(store: WorkStore, tmp_path: Path):
     _seed(store, tmp_path)
-    unit = _unit("codex:s4:1")
+    unit = _unit("codex:s4:2026-07-12:1")
     store.replace_work_units("codex:s4", "2026-07-12", [unit])
     counts = attribute_units(store, [unit], {"codex:s4": _session("codex:s4", None)})
     assert counts["inbox"] == 1
@@ -129,9 +129,9 @@ def test_no_cwd_goes_to_inbox(store: WorkStore, tmp_path: Path):
 def test_retire_idle_projects(store: WorkStore, tmp_path: Path):
     _seed(store, tmp_path)
     store.create_project("stale", "Stale")
-    unit = _unit("claude:s5:1", work_date="2026-06-01")
+    unit = _unit("claude:s5:2026-06-01:1", work_date="2026-06-01")
     store.replace_work_units("claude:s5", "2026-06-01", [unit])
-    store.set_unit_project("claude:s5:1", "stale")
+    store.set_unit_project("claude:s5:2026-06-01:1", "stale")
     paused = retire_idle_projects(store, "2026-07-12", retire_after_days=21)
     assert paused == ["stale"]
     # Projects with no units at all are left alone (freshly seeded).

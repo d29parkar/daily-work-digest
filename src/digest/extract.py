@@ -195,7 +195,10 @@ def _units_from_payload(
         ]
         results.append(
             WorkUnit(
-                unit_key=f"{session.session_id}:{index}",
+                # work_date is part of the key: a session can span days and
+                # produce units on each, so (session, date, n) is the unit
+                # of idempotency.
+                unit_key=f"{session.session_id}:{work_date}:{index}",
                 work_date=work_date,
                 project_id=None,
                 turn_ids=[turn.turn_id for turn in unit_turns],
@@ -227,7 +230,7 @@ def stub_unit(
     first_prompt = next((t.user_text for t in turns if t.user_text), "")
     intent = session.title or first_prompt.splitlines()[0][:120] if first_prompt else ""
     return WorkUnit(
-        unit_key=f"{session.session_id}:1",
+        unit_key=f"{session.session_id}:{work_date}:1",
         work_date=work_date,
         project_id=None,
         turn_ids=[turn.turn_id for turn in turns],

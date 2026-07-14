@@ -78,7 +78,8 @@ def attribute_units(
 
     counts = {"override": 0, "cwd": 0, "text": 0, "provisional": 0, "inbox": 0}
     for unit in units:
-        session_id = unit.unit_key.rsplit(":", 1)[0]
+        # unit_key = <session_id>:<work_date>:<n>
+        session_id = unit.unit_key.rsplit(":", 2)[0]
         session = sessions_by_id.get(session_id)
         cwd = normalize_path(session.cwd) if session and session.cwd else ""
 
