@@ -16,6 +16,13 @@ Definitions and rules:
   agent sounds accomplished.
 - claims_to_verify: statements in the transcript that external evidence could
   check later. type values: commit | tests_pass | deploy | fix_applied | other.
+- incidental: true when the unit is environment or tooling troubleshooting
+  rather than project work: fixing a broken venv or dependency install,
+  resolving permission/path/CLI errors hit while merely running something,
+  reviving a stuck container or tunnel, IDE/agent-harness quirks. The test:
+  would this appear in a status update about the project's engineering goal?
+  If not, it is incidental. Debugging the project's OWN code or behavior is
+  NOT incidental, even when it starts from an error message.
 - open_questions: only questions explicitly raised and left unanswered.
 - user_corrections: places where the user overrode, rejected, or redirected
   the agent. Quote or closely paraphrase the user.
@@ -30,6 +37,7 @@ Output exactly this JSON shape:
       "turns": [1, 2],
       "intent": "what the user was trying to achieve, one sentence",
       "kind": "debugging",
+      "incidental": false,
       "outcome_claim": "what the transcript says happened, one sentence",
       "status_claim": "done",
       "entities": ["function_or_module_names"],

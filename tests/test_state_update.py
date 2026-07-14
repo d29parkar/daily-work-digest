@@ -111,3 +111,24 @@ def test_export_registry_lists_projects_without_state(store, tmp_path):
     assert "Empty Project" in text
     assert "provisional" in text
     assert "No state recorded yet" in text
+
+
+def test_incidental_units_never_reach_project_memory(store, tmp_path):
+    config = _setup(store, tmp_path)
+    incidental = WorkUnit(
+        unit_key="claude:abc:2", work_date="2026-07-12", project_id="widget",
+        turn_ids=[], intent="Fix conda env corruption", kind="ops",
+        outcome_claim="reinstalled", status_claim="done",
+        files=[], entities=[], claims=[], open_questions=[],
+        verification={"verdict": "no_files", "evidence": [], "notes": []},
+        incidental=True,
+    )
+    units = store.list_units_for_date("2026-07-12") + [incidental]
+    store.replace_work_units("claude:abc", "2026-07-12", units)
+    store.set_unit_project("claude:abc:1", "widget")
+    store.set_unit_project("claude:abc:2", "widget")
+
+    llm = ScriptedLLM([_state_payload()])
+    update_project_states(store, config, llm, "2026-07-12")
+    assert "conda env corruption" not in llm.prompts[0]
+    assert "Fix widget crash" in llm.prompts[0]

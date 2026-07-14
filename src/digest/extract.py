@@ -213,6 +213,7 @@ def _units_from_payload(
                     str(c) for c in unit.get("user_corrections", []) if str(c).strip()
                 ][:8],
                 extraction="llm",
+                incidental=bool(unit.get("incidental", False)),
             )
         )
     return results

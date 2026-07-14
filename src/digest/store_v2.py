@@ -72,6 +72,11 @@ class WorkUnit:
     user_corrections: list[str] = field(default_factory=list)
     verification: dict[str, Any] = field(default_factory=dict)
     extraction: str = "llm"  # llm | stub
+    # Incidental = environment/tooling troubleshooting (venv breakage,
+    # dependency installs, permission errors) that is not project work.
+    # Excluded from state updates and the Trello card; footnoted in the
+    # night digest.
+    incidental: bool = False
 
 
 @dataclass(frozen=True)
@@ -257,8 +262,8 @@ class WorkStore:
                     kind, outcome_claim, status_claim, files_json,
                     entities_json, claims_json, open_questions_json,
                     user_corrections_json, verification_json, extraction,
-                    created_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    incidental, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -277,6 +282,7 @@ class WorkStore:
                         json.dumps(u.user_corrections),
                         json.dumps(u.verification),
                         u.extraction,
+                        int(u.incidental),
                         now_iso(),
                     )
                     for u in units
@@ -679,6 +685,7 @@ class WorkStore:
                 user_corrections_json text not null default '[]',
                 verification_json text not null default '{}',
                 extraction    text not null default 'llm',
+                incidental    integer not null default 0,
                 created_at    text not null
             );
             create index if not exists idx_units_v2_date
@@ -778,6 +785,7 @@ def _row_to_unit(row: sqlite3.Row) -> WorkUnit:
         user_corrections=json.loads(row["user_corrections_json"]),
         verification=json.loads(row["verification_json"]),
         extraction=row["extraction"],
+        incidental=bool(row["incidental"]),
     )
 
 

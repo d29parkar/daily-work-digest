@@ -35,7 +35,9 @@ def update_project_states(
     units = store.list_units_for_date(work_date)
     by_project: dict[str, list[WorkUnit]] = {}
     for unit in units:
-        if unit.project_id:
+        # Incidental troubleshooting never feeds project memory: a broken
+        # venv is not progress toward (or away from) an engineering goal.
+        if unit.project_id and not unit.incidental:
             by_project.setdefault(unit.project_id, []).append(unit)
 
     for project_id, project_units in sorted(by_project.items()):
