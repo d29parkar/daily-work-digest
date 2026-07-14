@@ -82,8 +82,60 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if args.command == "pipeline":
+            from .pipeline import run_pipeline
+
+            result = run_pipeline(config, args.mode, args.date)
+            print(f"Pipeline {args.mode} for {result.work_date}:")
+            for stage_name, status in result.stage_status.items():
+                print(f"  {stage_name}: {status}")
+            if args.print:
+                print()
+                print(result.markdown)
+            return 0
+
+        if args.command == "projects":
+            return run_projects(config, args)
+
+        if args.command == "assign":
+            from .store_v2 import WorkStore
+
+            work_store = WorkStore(config.sqlite_path)
+            try:
+                if work_store.get_project(args.project) is None:
+                    print(f"Unknown project: {args.project}", file=sys.stderr)
+                    return 1
+                work_store.set_override(args.unit_key, args.project, args.note or "")
+                work_store.set_unit_project(args.unit_key, args.project)
+                print(f"Assigned {args.unit_key} -> {args.project} (sticky override).")
+            finally:
+                work_store.close()
+            return 0
+
+        if args.command == "prune":
+            from datetime import datetime, timedelta
+
+            from .store_v2 import WorkStore
+
+            keep_after = (
+                datetime.now().astimezone() - timedelta(days=args.keep_days)
+            ).isoformat(timespec="seconds")
+            work_store = WorkStore(config.sqlite_path)
+            try:
+                pruned = work_store.prune_turn_text(keep_after)
+            finally:
+                work_store.close()
+            print(f"Pruned turn text from {pruned} turn(s) older than {args.keep_days} days.")
+            return 0
+
+        generate_fn = generate_digest
+        if config.pipeline.engine == "v2":
+            from .pipeline import generate_digest_v2
+
+            generate_fn = generate_digest_v2
+
         if args.command == "generate":
-            generated = generate_digest(
+            generated = generate_fn(
                 config=config,
                 store=store,
                 mode=args.mode,
@@ -104,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "send":
-            return run_send(config, store, args)
+            return run_send(config, store, args, generate_fn)
 
         parser.print_help()
         return 2
@@ -112,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
         store.close()
 
 
-def run_send(config, store: DigestStore, args) -> int:
+def run_send(config, store: DigestStore, args, generate_fn=generate_digest) -> int:
     existing = store.get_digest_run(date.today().isoformat(), args.mode)
     if (
         args.once_per_day
@@ -124,7 +176,7 @@ def run_send(config, store: DigestStore, args) -> int:
         print(f"Skipped; digest email was already sent for {date.today()} {args.mode}.")
         return 0
 
-    generated = generate_digest(
+    generated = generate_fn(
         config=config,
         store=store,
         mode=args.mode,
@@ -169,6 +221,74 @@ def run_send(config, store: DigestStore, args) -> int:
     return 0
 
 
+def run_projects(config, args) -> int:
+    """Registry management: the human-correction surface (DESIGN_V2.md 3.3)."""
+    from .state_update import bootstrap_state_if_missing, export_registry
+    from .store_v2 import WorkStore
+
+    store = WorkStore(config.sqlite_path)
+    try:
+        action = args.action
+        if action == "list":
+            for project in store.list_projects(include_retired=True):
+                head = store.get_head_state(project.project_id)
+                goal = f" | goal: {head.goal}" if head and head.goal else ""
+                trello = " [trello]" if project.trello_scope else ""
+                print(f"{project.project_id:24} {project.status:12} {project.name}{trello}{goal}")
+            return 0
+        project_id = args.project
+        if store.get_project(project_id) is None and action != "list":
+            print(f"Unknown project: {project_id}", file=sys.stderr)
+            return 1
+        if action == "confirm":
+            store.set_project_status(project_id, "active")
+            print(f"Confirmed {project_id} as active.")
+        elif action == "retire":
+            store.set_project_status(project_id, "retired")
+            print(f"Retired {project_id}.")
+        elif action == "rename":
+            store.rename_project(project_id, args.value)
+            print(f"Renamed {project_id} to {args.value!r}.")
+        elif action == "set-goal":
+            bootstrap_state_if_missing(store, project_id, args.value)
+            head = store.get_head_state(project_id)
+            store.write_state_version(
+                project_id,
+                head.as_of_date,
+                goal=args.value,
+                system_state=head.system_state,
+                narrative_delta=head.narrative_delta,
+                open_threads=head.open_threads,
+                evidence=head.evidence,
+                written_by="human",
+            )
+            print(f"Goal for {project_id} set.")
+        elif action == "trello":
+            enable = args.value.lower() in {"on", "true", "1", "yes"}
+            store.set_trello_scope(project_id, enable)
+            print(f"Trello scope for {project_id}: {enable}.")
+        elif action == "rollback":
+            version = store.rollback_state(project_id, args.value)
+            if version is None:
+                print(f"No state at or before {args.value}.", file=sys.stderr)
+                return 1
+            print(f"Rolled {project_id} back to version {version}.")
+        elif action == "add-matcher":
+            kind, _, pattern = args.value.partition("=")
+            if kind not in {"cwd_prefix", "repo_name", "branch_glob", "keyword"} or not pattern:
+                print("Matcher must be kind=pattern (cwd_prefix|repo_name|branch_glob|keyword).", file=sys.stderr)
+                return 1
+            store.add_matcher(project_id, kind, pattern, source="human")
+            print(f"Added matcher {kind}={pattern} to {project_id}.")
+        else:
+            print(f"Unknown action: {action}", file=sys.stderr)
+            return 1
+        export_registry(store, config.pipeline.registry_export_path)
+        return 0
+    finally:
+        store.close()
+
+
 def run_doctor(config, errors: list[str], warnings: list[str]) -> int:
     """Print a full health check: config, paths, env vars, scheduler, integrations."""
     print(f"Config file: {config.config_path}")
@@ -202,6 +322,33 @@ def run_doctor(config, errors: list[str], warnings: list[str]) -> int:
     api_key_set = bool(os.environ.get(config.model.api_key_env))
     print(f"  provider: {config.model.provider} | model: {config.model.name}")
     print(f"  {config.model.api_key_env}: {'set' if api_key_set else 'NOT SET (local_rules fallback will be used)'}")
+    print()
+
+    print("Pipeline (v2):")
+    print(f"  engine: {config.pipeline.engine}")
+    models = config.models_v2
+    print(
+        f"  models.provider: {models.provider} | extract: {models.extract} "
+        f"| state: {models.state} | render: {models.render}"
+    )
+    for env_name in (models.openai_api_key_env, models.anthropic_api_key_env):
+        print(f"  {env_name}: {'set' if os.environ.get(env_name) else 'NOT SET'}")
+    for skill_path in config.pipeline.trello_skill_paths:
+        state = "OK     " if skill_path.exists() else "MISSING"
+        print(f"  {state} trello skill: {skill_path}")
+    try:
+        from .store_v2 import WorkStore
+
+        work_store = WorkStore(config.sqlite_path)
+        projects = work_store.list_projects(include_retired=True)
+        provisional = sum(1 for p in projects if p.status == "provisional")
+        print(
+            f"  registry: {len(projects)} project(s)"
+            + (f", {provisional} provisional awaiting confirmation" if provisional else "")
+        )
+        work_store.close()
+    except Exception as exc:  # pragma: no cover - depends on local FS state
+        print(f"  registry: ERROR ({exc})")
     print()
 
     print("Email:")
@@ -341,6 +488,45 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use stored source data without refreshing ingestion first.",
     )
+
+    pipeline_parser = subparsers.add_parser(
+        "pipeline", help="Run the v2 pipeline (harvest/extract/attribute/corroborate/state/render)."
+    )
+    _add_mode_args(pipeline_parser)
+    pipeline_parser.add_argument(
+        "--date", help="Work date (YYYY-MM-DD). Defaults to today."
+    )
+    pipeline_parser.add_argument(
+        "--print", action="store_true", help="Print the rendered markdown."
+    )
+
+    projects_parser = subparsers.add_parser(
+        "projects", help="Manage the project registry (list/confirm/rename/retire/set-goal/trello/rollback/add-matcher)."
+    )
+    projects_parser.add_argument(
+        "action",
+        choices=[
+            "list", "confirm", "rename", "retire",
+            "set-goal", "trello", "rollback", "add-matcher",
+        ],
+    )
+    projects_parser.add_argument("project", nargs="?", help="Project id (slug).")
+    projects_parser.add_argument(
+        "value", nargs="?", default="",
+        help="New name / goal text / on|off / date / kind=pattern.",
+    )
+
+    assign_parser = subparsers.add_parser(
+        "assign", help="Reassign a work unit to a project (sticky override)."
+    )
+    assign_parser.add_argument("unit_key")
+    assign_parser.add_argument("project")
+    assign_parser.add_argument("--note", default="")
+
+    prune_parser = subparsers.add_parser(
+        "prune", help="Delete stored turn text older than N days (ids/files kept)."
+    )
+    prune_parser.add_argument("--keep-days", type=int, default=90)
 
     return parser
 

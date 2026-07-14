@@ -36,6 +36,7 @@ class HarvestResult:
     unchanged: int = 0
     excluded: int = 0
     corrupt: list[str] = field(default_factory=list)
+    changed_session_ids: list[str] = field(default_factory=list)
 
 
 def run_harvest(config: DigestConfig, store: WorkStore) -> HarvestResult:
@@ -60,6 +61,7 @@ def run_harvest(config: DigestConfig, store: WorkStore) -> HarvestResult:
                 continue
             store.upsert_session(session, turns)
             result.harvested += 1
+            result.changed_session_ids.append(session.session_id)
             if session.status == "corrupt":
                 result.corrupt.append(str(path))
         except OSError as exc:
