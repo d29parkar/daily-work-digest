@@ -40,6 +40,28 @@ class IntegrationsConfig:
 
 
 @dataclass(frozen=True)
+class ModelsV2Config:
+    """Per-role model selection for the v2 pipeline (DESIGN_V2.md 3.2/3.5)."""
+
+    provider: str  # auto | openai | anthropic | fixture | none
+    extract: str
+    state: str
+    render: str
+    openai_api_key_env: str
+    anthropic_api_key_env: str
+    fixture_dir: str
+    timeout_seconds: int
+
+
+@dataclass(frozen=True)
+class PipelineConfig:
+    engine: str  # v1 | v2
+    retire_after_days: int
+    trello_skill_paths: list[Path]
+    registry_export_path: Path
+
+
+@dataclass(frozen=True)
 class DigestConfig:
     config_path: Path
     project_root: Path
@@ -61,6 +83,8 @@ class DigestConfig:
     email: EmailConfig
     model: ModelConfig
     integrations: IntegrationsConfig
+    models_v2: ModelsV2Config
+    pipeline: PipelineConfig
 
     # Backwards-compatible accessors used by older call sites.
     @property
@@ -104,6 +128,8 @@ def load_config(config_path: str | Path | None = None) -> DigestConfig:
     email = dict(raw.get("email", {}))
     smtp = dict(email.get("smtp", {}))
     model = dict(raw.get("model", {}))
+    models_v2 = dict(raw.get("models", {}))
+    pipeline = dict(raw.get("pipeline", {}))
     integrations = dict(raw.get("integrations", {}))
     gmail = dict(integrations.get("gmail", {}))
     calendar = dict(integrations.get("calendar", {}))
@@ -156,6 +182,31 @@ def load_config(config_path: str | Path | None = None) -> DigestConfig:
         integrations=IntegrationsConfig(
             gmail_enabled=bool(gmail.get("enabled", False)),
             calendar_enabled=bool(calendar.get("enabled", False)),
+        ),
+        models_v2=ModelsV2Config(
+            provider=str(models_v2.get("provider", "auto")).lower(),
+            extract=str(models_v2.get("extract", "gpt-4o-mini")),
+            state=str(models_v2.get("state", "gpt-4o")),
+            render=str(models_v2.get("render", "gpt-4o-mini")),
+            openai_api_key_env=str(
+                models_v2.get("openai_api_key_env", "OPENAI_API_KEY")
+            ),
+            anthropic_api_key_env=str(
+                models_v2.get("anthropic_api_key_env", "ANTHROPIC_API_KEY")
+            ),
+            fixture_dir=str(models_v2.get("fixture_dir", "")),
+            timeout_seconds=int(models_v2.get("timeout_seconds", 120)),
+        ),
+        pipeline=PipelineConfig(
+            engine=str(pipeline.get("engine", "v1")).lower(),
+            retire_after_days=int(pipeline.get("retire_after_days", 21)),
+            trello_skill_paths=[
+                _resolve_path(p, PROJECT_ROOT)
+                for p in list(pipeline.get("trello_skill_paths", []))
+            ],
+            registry_export_path=_resolve_path(
+                pipeline.get("registry_export_path", "data/registry.md"), PROJECT_ROOT
+            ),
         ),
     )
 
